@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://play.pokemonshowdown.com; style-src 'self' 'unsafe-inline' https://play.pokemonshowdown.com; img-src data: https://*.pokemonshowdown.com; font-src data: https://play.pokemonshowdown.com; media-src https://play.pokemonshowdown.com; base-uri 'none'; form-action 'none'">
+  <title>对战动画</title>
+  <link rel="stylesheet" href="https://play.pokemonshowdown.com/style/font-awesome.css?">
+  <link rel="stylesheet" href="https://play.pokemonshowdown.com/style/battle.css?a7">
+  <link rel="stylesheet" href="https://play.pokemonshowdown.com/style/replay.css?a7">
+  <link rel="stylesheet" href="https://play.pokemonshowdown.com/style/utilichart.css?a7">
+  <link rel="stylesheet" href="replay-player.css">
+  <script src="replay-data.js" defer></script>
+  <script src="replay-player.js" defer></script>
+</head>
+<body>
+  <main id="player">
+    <div id="scene" class="scene"><div id="battle" class="battle"></div></div>
+    <div id="battle-log" class="battle-log live-log" aria-label="动画回放日志"></div>
+    <p id="player-status" role="status">正在载入对战动画…</p>
+  </main>
+</body>
+</html>

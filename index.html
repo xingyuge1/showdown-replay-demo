@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="通过一场 Pokémon Showdown Gen 9 OU 示例对局，逐回合查看对战事件与模型胜率估计。">
-  <meta name="theme-color" content="#12291f">
+  <meta name="theme-color" content="#0d1423">
   <title>对战复盘 · Showdown Coach</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
   <script src="battle-data.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="app.js?v=2" defer></script>
 </head>
 <body>
   <header class="mast">
@@ -22,7 +22,7 @@
         <div>
           <p class="kicker">POKÉMON SHOWDOWN <span></span> GEN 9 OU</p>
           <h1>对战复盘</h1>
-          <p class="intro-copy">切换回合，同步查看对战事件和模型在行动前的胜率估计。</p>
+          <p class="intro-copy">拖动回合进度条，动画和胜率曲线会一起定位到该回合行动前。</p>
         </div>
         <a class="official" id="official" target="_blank" rel="noopener noreferrer" hidden>
           在 Showdown 播放完整回放
@@ -47,6 +47,36 @@
       </div>
 
       <div class="panels">
+        <section class="panel replay-panel" aria-labelledby="replay-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="replay-title">对战回放</h2>
+              <p id="animation-status" role="status">正在载入动画播放器…</p>
+            </div>
+            <span class="turn-tag" id="replay-turn"></span>
+          </div>
+          <div class="replay-grid">
+            <div class="animation">
+              <iframe id="animation" title="Pokémon Showdown 对战动画" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+            </div>
+            <div class="event-panel">
+              <h3>本回合的关键事件</h3>
+              <div class="matchup" id="matchup" aria-label="回合开始时的双方场上宝可梦"></div>
+              <ol class="events" id="events" aria-label="对战事件"></ol>
+            </div>
+          </div>
+          <div class="timeline">
+            <label for="turn-slider">回合进度</label>
+            <input id="turn-slider" type="range" min="1" max="1" value="1">
+            <output id="turn-counter" for="turn-slider">—</output>
+          </div>
+          <div class="controls" role="group" aria-label="回放控制">
+            <button id="play" type="button" aria-pressed="false" disabled>播放</button>
+            <button id="previous" type="button">上一回合</button>
+            <button id="next" type="button">下一回合</button>
+            <button id="reset" type="button">回到开局</button>
+          </div>
+        </section>
         <section class="panel chart-panel" aria-labelledby="chart-title">
           <div class="panel-head">
             <div>
@@ -59,37 +89,10 @@
             </div>
           </div>
           <div class="plot">
-            <canvas id="curve" role="img" aria-label="逐回合胜率曲线。使用下方的回合滑块选择数据点。"></canvas>
+            <canvas id="curve" role="img" aria-label="逐回合胜率曲线。使用回合进度条选择数据点。"></canvas>
           </div>
-          <div class="timeline">
-            <label for="turn-slider">回合进度</label>
-            <input id="turn-slider" type="range" min="1" max="1" value="1">
-            <output id="turn-counter" for="turn-slider">—</output>
-          </div>
-          <div class="controls" role="group" aria-label="回放控制">
-            <button id="play" type="button" aria-pressed="false">播放</button>
-            <button id="previous" type="button">上一回合</button>
-            <button id="next" type="button">下一回合</button>
-            <button id="reset" type="button">回到开局</button>
-          </div>
-        </section>
-
-        <section class="panel replay-panel" aria-labelledby="replay-title">
-          <div class="panel-head">
-            <div>
-              <h2 id="replay-title">回合回放</h2>
-              <p>本回合的关键对战事件</p>
-            </div>
-            <span class="turn-tag" id="replay-turn"></span>
-          </div>
-          <div class="matchup" id="matchup" aria-label="回合开始时的双方场上宝可梦"></div>
-          <ol class="events" id="events" aria-label="对战事件"></ol>
         </section>
       </div>
-      <details class="animation" id="animation" hidden>
-        <summary>展开官方动画回放</summary>
-        <div id="animation-content"></div>
-      </details>
       <p class="note" id="source-note"></p>
       <p class="sr-only" id="selected-status" aria-live="polite" aria-atomic="true"></p>
     </div>

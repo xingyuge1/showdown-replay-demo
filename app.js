@@ -13,6 +13,9 @@ const next = byId("next");
 const reset = byId("reset");
 const events = byId("events");
 const matchup = byId("matchup");
+const animation = byId("animation");
+const animationStatus = byId("animation-status");
+const CHANNEL = "showdown-demo-replay-v2";
 const turnFormatter = new Intl.NumberFormat("zh-CN");
 const percentage = new Intl.NumberFormat("zh-CN", {
   style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1,
@@ -20,8 +23,15 @@ const percentage = new Intl.NumberFormat("zh-CN", {
 
 let turns = [];
 let index = 0;
-let timer = null;
 let area = null;
+let playerReady = false;
+let playing = false;
+let ended = false;
+let seeking = false;
+let playAfterSeek = false;
+let sequence = 0;
+let sendFrame = 0;
+let startupTimer = 0;
 
 function isProbability(value) {
   return Number.isFinite(value) && value >= 0 && value <= 1;
@@ -53,12 +63,12 @@ function paintRun(points, bottom, fill) {
     pen.fill();
     pen.beginPath();
     trace(points);
-    pen.strokeStyle = "#2b6b55";
+    pen.strokeStyle = "#ae9afc";
     pen.lineWidth = 2.5;
     pen.lineJoin = "round";
     pen.stroke();
   }
-  pen.fillStyle = "#2b6b55";
+  pen.fillStyle = "#ae9afc";
   for (const { x, y } of points) {
     pen.beginPath();
     pen.arc(x, y, 2.5, 0, Math.PI * 2);
@@ -92,13 +102,13 @@ function paintChart() {
   pen.lineWidth = 1;
   for (const value of [0, 25, 50, 75, 100]) {
     const gy = y(value / 100);
-    pen.strokeStyle = value === 50 ? "#b7c8b8" : "#dde6db";
+    pen.strokeStyle = value === 50 ? "#54647f" : "#24364f";
     pen.setLineDash(value === 50 ? [4, 5] : []);
     pen.beginPath();
     pen.moveTo(left, gy);
     pen.lineTo(right, gy);
     pen.stroke();
-    pen.fillStyle = "#546457";
+    pen.fillStyle = "#b7c6de";
     pen.fillText(value + "%", left - 8, gy);
   }
   pen.setLineDash([]);
@@ -109,8 +119,8 @@ function paintChart() {
     pen.fillText(turnFormatter.format(turns[i].turn), x(i), h - 13);
   }
   const fill = pen.createLinearGradient(0, top, 0, bottom);
-  fill.addColorStop(0, "#91c0a87d");
-  fill.addColorStop(1, "#cce8c626");
+  fill.addColorStop(0, "#9b82e46b");
+  fill.addColorStop(1, "#806bd315");
   let run = [];
   turns.forEach(({ p }, i) => {
     if (isProbability(p)) run.push({ x: x(i), y: y(p) });
@@ -123,7 +133,7 @@ function paintChart() {
 
   const selected = turns[index];
   const selectedX = x(index);
-  pen.strokeStyle = "#93601e";
+  pen.strokeStyle = "#59e1ce";
   pen.lineWidth = 1.5;
   pen.setLineDash([4, 4]);
   pen.beginPath();
@@ -134,9 +144,9 @@ function paintChart() {
   if (isProbability(selected.p)) {
     pen.beginPath();
     pen.arc(selectedX, y(selected.p), 6, 0, Math.PI * 2);
-    pen.fillStyle = "#8c5819";
+    pen.fillStyle = "#59e1ce";
     pen.fill();
-    pen.strokeStyle = "#fdfcf5";
+    pen.strokeStyle = "#14243a";
     pen.lineWidth = 2;
     pen.stroke();
   }
@@ -191,52 +201,92 @@ function showTurn(newIndex, announce = true) {
   paintChart();
 }
 
-function pausePlayback() {
-  if (timer === null) return;
-  window.clearInterval(timer);
-  timer = null;
-  play.textContent = "播放";
-  play.setAttribute("aria-pressed", "false");
+function playerStatus(state, text, turn) {
+  animationStatus.dataset.state = state;
+  animationStatus.textContent = text;
+  if (turn !== undefined) animationStatus.dataset.turn = String(turn);
+}
+
+function setPlaying(active) {
+  playing = active;
+  play.disabled = !playerReady || seeking;
+  play.textContent = active ? "暂停" : "播放";
+  play.setAttribute("aria-pressed", String(active));
+}
+
+function command(type, payload) {
+  animation.contentWindow.postMessage({ channel: CHANNEL, type, seq: sequence, ...payload }, "*");
+}
+
+function seek(newIndex, resume = false) {
+  showTurn(newIndex);
+  playAfterSeek = resume;
+  ended = false;
+  if (!playerReady) return;
+  cancelAnimationFrame(sendFrame);
+  sequence++;
+  seeking = true;
+  setPlaying(false);
+  const turn = turns[index].turn;
+  playerStatus("loading", "正在定位第 " + turn + " 回合…");
+  sendFrame = requestAnimationFrame(() => command("seek", { turn }));
 }
 
 function togglePlayback() {
-  if (timer !== null) {
-    pausePlayback();
+  if (!playerReady || seeking) return;
+  if (ended) {
+    seek(0, true);
+  } else {
+    command("playback", { playing: !playing });
+  }
+}
+
+function markUnavailable() {
+  clearTimeout(startupTimer);
+  playerReady = seeking = false;
+  setPlaying(false);
+  playerStatus("error", "动画暂时无法加载，可打开 Showdown 完整回放。");
+}
+
+function onPlayer(event) {
+  const data = event.data;
+  if (event.source !== animation.contentWindow || event.origin !== "null" ||
+      !data || data.channel !== CHANNEL || !Number.isSafeInteger(data.seq)) return;
+  if (data.type === "error" || (data.type === "ready" && data.turns !== turns.length)) {
+    markUnavailable();
     return;
   }
-  if (index === turns.length - 1) showTurn(0);
-  play.textContent = "暂停";
-  play.setAttribute("aria-pressed", "true");
-  timer = window.setInterval(() => {
-    showTurn(index + 1, false);
-    if (index === turns.length - 1) {
-      pausePlayback();
-      byId("selected-status").textContent = "已播放至最后一回合。";
+  if (data.type === "ready") {
+    clearTimeout(startupTimer);
+    playerReady = true;
+    seek(index, playAfterSeek);
+    return;
+  }
+  if (!playerReady || data.seq !== sequence) return;
+  if (data.type === "positioned" && data.turn === turns[index].turn) {
+    seeking = false;
+    setPlaying(false);
+    playerStatus("ready", "已暂停在第 " + data.turn + " 回合行动前。", data.turn);
+    if (playAfterSeek) {
+      playAfterSeek = false;
+      command("playback", { playing: true });
     }
-  }, 1400);
-}
-
-function seek(newIndex) {
-  pausePlayback();
-  showTurn(newIndex);
-}
-
-function prepareOfficialReplay(url) {
-  const official = byId("official");
-  const animation = byId("animation");
-  const container = byId("animation-content");
-  official.href = url;
-  official.hidden = false;
-  animation.hidden = false;
-  animation.addEventListener("toggle", () => {
-    if (!animation.open || container.firstChild) return;
-    const frame = document.createElement("iframe");
-    frame.title = "Pokémon Showdown 官方动画回放";
-    frame.referrerPolicy = "no-referrer";
-    frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups");
-    frame.src = url;
-    container.append(frame);
-  });
+  } else if (data.type === "seek-error") {
+    seeking = playAfterSeek = false;
+    setPlaying(false);
+    playerStatus("error", "动画定位失败，请重新选择回合。");
+  } else if (!seeking && data.type === "turn" &&
+             Number.isInteger(data.turn) && data.turn >= 1 && data.turn <= turns.length) {
+    showTurn(data.turn - 1, false);
+    playerStatus("ready", (data.playing === true ? "正在播放第 " : "已暂停在第 ") +
+      data.turn + " 回合。", data.turn);
+  } else if (!seeking && data.type === "playback") {
+    ended = data.ended === true;
+    setPlaying(data.playing === true);
+    const turn = turns[index].turn;
+    playerStatus("ready", ended ? "已播放至对局结束。" :
+      (playing ? "正在播放第 " + turn + " 回合。" : "已暂停在第 " + turn + " 回合。"), turn);
+  }
 }
 
 function start() {
@@ -247,7 +297,9 @@ function start() {
   turns = demo.turns;
   if (typeof demo.replayUrl === "string" &&
       /^https:\/\/replay\.pokemonshowdown\.com\/gen9ou-\d+$/.test(demo.replayUrl)) {
-    prepareOfficialReplay(demo.replayUrl);
+    const official = byId("official");
+    official.href = demo.replayUrl;
+    official.hidden = false;
   }
   byId("sample-label").textContent = demo.label;
   byId("total").textContent = turns.length + " 回合";
@@ -269,6 +321,9 @@ function start() {
   notice.hidden = true;
   workspace.hidden = false;
   showTurn(0, false);
+  window.addEventListener("message", onPlayer);
+  startupTimer = setTimeout(markUnavailable, 35000);
+  animation.src = "replay-player.html";
 }
 
 start();
