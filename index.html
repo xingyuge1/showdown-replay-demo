@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="通过一场 Pokémon Showdown Gen 9 OU 示例对局，逐回合查看对战事件与模型胜率估计。">
+  <meta name="theme-color" content="#12291f">
+  <title>对战复盘 · Showdown Coach</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="battle-data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="mast">
+    <div class="frame">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>Showdown Coach</span>
+        <span class="brand-tag">项目演示</span>
+      </div>
+      <div class="intro">
+        <div>
+          <p class="kicker">POKÉMON SHOWDOWN <span></span> GEN 9 OU</p>
+          <h1>对战复盘</h1>
+          <p class="intro-copy">切换回合，同步查看对战事件和模型在行动前的胜率估计。</p>
+        </div>
+        <a class="official" id="official" target="_blank" rel="noopener noreferrer" hidden>
+          在 Showdown 播放完整回放
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="frame">
+    <p id="notice" class="notice" role="status">正在载入示例对局…</p>
+    <noscript><p class="notice">请启用 JavaScript 以浏览对战回放与曲线。</p></noscript>
+    <div id="workspace" hidden>
+      <div class="overview">
+        <div class="match-info">
+          <strong id="sample-label"></strong>
+          <span id="total"></span>
+        </div>
+        <div class="match-info secondary">
+          <span>预测视角 <strong>模型方</strong></span>
+          <span id="result"></span>
+        </div>
+      </div>
+
+      <div class="panels">
+        <section class="panel chart-panel" aria-labelledby="chart-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="chart-title">逐回合胜率</h2>
+              <p>模型方本回合行动前的估计</p>
+            </div>
+            <div class="probability">
+              <strong id="probability">—</strong>
+              <span id="probability-turn"></span>
+            </div>
+          </div>
+          <div class="plot">
+            <canvas id="curve" role="img" aria-label="逐回合胜率曲线。使用下方的回合滑块选择数据点。"></canvas>
+          </div>
+          <div class="timeline">
+            <label for="turn-slider">回合进度</label>
+            <input id="turn-slider" type="range" min="1" max="1" value="1">
+            <output id="turn-counter" for="turn-slider">—</output>
+          </div>
+          <div class="controls" role="group" aria-label="回放控制">
+            <button id="play" type="button" aria-pressed="false">播放</button>
+            <button id="previous" type="button">上一回合</button>
+            <button id="next" type="button">下一回合</button>
+            <button id="reset" type="button">回到开局</button>
+          </div>
+        </section>
+
+        <section class="panel replay-panel" aria-labelledby="replay-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="replay-title">回合回放</h2>
+              <p>本回合的关键对战事件</p>
+            </div>
+            <span class="turn-tag" id="replay-turn"></span>
+          </div>
+          <div class="matchup" id="matchup" aria-label="回合开始时的双方场上宝可梦"></div>
+          <ol class="events" id="events" aria-label="对战事件"></ol>
+        </section>
+      </div>
+      <details class="animation" id="animation" hidden>
+        <summary>展开官方动画回放</summary>
+        <div id="animation-content"></div>
+      </details>
+      <p class="note" id="source-note"></p>
+      <p class="sr-only" id="selected-status" aria-live="polite" aria-atomic="true"></p>
+    </div>
+  </main>
+</body>
+</html>
